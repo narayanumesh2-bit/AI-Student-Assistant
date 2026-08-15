@@ -4,31 +4,34 @@ from gtts import gTTS
 import io
 import datetime
 import platform
+import music_gen # म्यूजिक जनरेशन के लिए
 
 # --- CONFIGURATION ---
 client = Groq(api_key="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")
 
 st.set_page_config(page_title="OmniLearn Assistant", page_icon="🤖", layout="wide")
-st.markdown("<style>.stApp { background-color: #0e0e10; color: #ffffff; }</style>", unsafe_allow_html=True)
+
+# --- CSS FOR DARK MODE & BRIGHT TEXT ---
+st.markdown("""
+    <style>
+    .stApp { background-color: #0e0e10 !important; }
+    h1, h2, h3, p, div, span, label, .stMarkdown { color: #ffffff !important; }
+    .stChatMessage { background-color: #1e1e24 !important; border-radius: 10px; }
+    .stButton > button { background-color: #2b2b36 !important; color: #ffffff !important; border: 1px solid #444; }
+    .st-expander { background-color: #161621 !important; border: 1px solid #333; }
+    </style>
+""", unsafe_allow_html=True)
 
 st.title("🤖 OmniLearn Assistant")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# --- AI RESPONSE (Multilingual, Date & Time Support) ---
+# --- AI RESPONSE ---
 def get_ai_response(prompt):
     current_date = datetime.datetime.now().strftime("%d %B %Y, %I:%M %p")
-    full_prompt = (
-        f"Current Date and Time: {current_date}. "
-        f"You are an expert, friendly AI assistant. Always respond in the exact same language "
-        f"that the user uses (supports Hindi, English, and all Indian languages). "
-        f"Task/Query: {prompt}"
-    )
+    full_prompt = f"Current Date: {current_date}. Respond in user's language: {prompt}"
     try:
-        chat = client.chat.completions.create(
-            messages=[{"role": "user", "content": full_prompt}], 
-            model="llama-3.3-70b-versatile"
-        )
+        chat = client.chat.completions.create(messages=[{"role": "user", "content": full_prompt}], model="llama-3.3-70b-versatile")
         return chat.choices[0].message.content
     except Exception as e:
         return f"Error: {str(e)}"
@@ -41,95 +44,73 @@ def text_to_speech(text):
     fp.seek(0)
     return fp
 
-# --- SIDEBAR SPECIAL FEATURES (With Upload & Camera Options) ---
+# --- SIDEBAR SPECIAL FEATURES ---
 with st.sidebar:
     st.markdown("### ✨ Special Features")
     
-    # 1. Math Solver
+    # Math Solver
     with st.expander("🧮 Math Solver"):
-        math_mode = st.radio("मैथ इनपुट चुनें:", ["फाइल/फोटो अपलोड", "लाइव कैमरा"], key="math_m")
-        if math_mode == "फाइल/फोटो अपलोड":
-            math_file = st.file_uploader("Math File/Doc", type=["jpg", "png", "pdf", "txt", "docx"], key="math_up")
-        else:
-            math_cam = st.camera_input("मैथ प्रश्न की फोटो लें", key="math_cam")
-            
-        math_query = st.text_input("या गणित का सवाल यहाँ लिखें:", key="math_q")
+        math_mode = st.radio("इनपुट:", ["फाइल अपलोड", "कैमरा"], key="math_m")
+        if math_mode == "फाइल अपलोड": st.file_uploader("Upload", type=["jpg", "png", "pdf"], key="math_up")
+        else: st.camera_input("कैमरा", key="math_cam")
+        math_query = st.text_input("सवाल:", key="math_q")
         if st.button("Solve Math"):
-            q_text = math_query if math_query else "Solve the math problem step by step."
-            res = get_ai_response(q_text)
-            st.session_state.messages.append({"role": "user", "content": f"Math: {q_text}"})
-            st.session_state.messages.append({"role": "assistant", "content": res})
-            st.rerun()
-            
-    # 2. Science Solver
-    with st.expander("🧪 Science Solver"):
-        sci_mode = st.radio("साइंस इनपुट चुनें:", ["फाइल/फोटो अपलोड", "लाइव कैमरा"], key="sci_m")
-        if sci_mode == "फाइल/फोटो अपलोड":
-            sci_file = st.file_uploader("Science File/Doc", type=["jpg", "png", "pdf", "txt", "docx"], key="sci_up")
-        else:
-            sci_cam = st.camera_input("साइंस प्रश्न की फोटो लें", key="sci_cam")
-            
-        sci_query = st.text_input("या विज्ञान का प्रश्न यहाँ लिखें:", key="sci_q")
-        if st.button("Solve Science"):
-            q_text = sci_query if sci_query else "Explain this science concept clearly."
-            res = get_ai_response(q_text)
-            st.session_state.messages.append({"role": "user", "content": f"Science: {q_text}"})
-            st.session_state.messages.append({"role": "assistant", "content": res})
+            res = get_ai_response(math_query or "Solve math")
+            st.session_state.messages.extend([{"role": "user", "content": math_query}, {"role": "assistant", "content": res}])
             st.rerun()
 
-    # 3. General Solver
+    # Science Solver
+    with st.expander("🧪 Science Solver"):
+        sci_mode = st.radio("इनपुट:", ["फाइल अपलोड", "कैमरा"], key="sci_m")
+        if sci_mode == "फाइल अपलोड": st.file_uploader("Upload", type=["jpg", "png", "pdf"], key="sci_up")
+        else: st.camera_input("कैमरा", key="sci_cam")
+        sci_query = st.text_input("प्रश्न:", key="sci_q")
+        if st.button("Solve Science"):
+            res = get_ai_response(sci_query or "Explain science")
+            st.session_state.messages.extend([{"role": "user", "content": sci_query}, {"role": "assistant", "content": res}])
+            st.rerun()
+
+    # General Solver
     with st.expander("🌍 General Solver"):
-        gen_query = st.text_input("कोई भी सामान्य सवाल पूछें:", key="gen_q")
+        gen_query = st.text_input("सवाल:", key="gen_q")
         if st.button("Get Answer"):
             res = get_ai_response(gen_query)
-            st.session_state.messages.append({"role": "user", "content": gen_query})
-            st.session_state.messages.append({"role": "assistant", "content": res})
+            st.session_state.messages.extend([{"role": "user", "content": gen_query}, {"role": "assistant", "content": res}])
             st.rerun()
 
-    # 4. Create Notes (Human-Like Handwritten Style with Upload & Camera)
+    # Create Notes
     with st.expander("📝 Create Notes"):
-        note_mode = st.radio("नोट्स इनपुट चुनें:", ["फाइल/फोटो अपलोड", "लाइव कैमरा"], key="note_m")
-        if note_mode == "फाइल/फोटो अपलोड":
-            note_file = st.file_uploader("Notes File/Doc", type=["jpg", "png", "pdf", "txt", "docx"], key="note_up")
-        else:
-            note_cam = st.camera_input("नोट्स के लिए फोटो लें", key="note_cam")
-            
-        note_topic = st.text_input("नोट्स का टॉपिक लिखें:", key="note_t")
+        note_mode = st.radio("इनपुट:", ["फाइल अपलोड", "कैमरा"], key="note_m")
+        if note_mode == "फाइल अपलोड": st.file_uploader("Upload", type=["jpg", "png", "pdf"], key="note_up")
+        else: st.camera_input("कैमरा", key="note_cam")
+        note_topic = st.text_input("टॉपिक:", key="note_t")
         if st.button("Generate Notes"):
-            topic_desc = note_topic if note_topic else "the provided document"
-            q_text = (
-                f"Act as an expert human student. Write clean, natural, handwritten-style study notes for '{topic_desc}'. "
-                f"Make it look like it was written manually by a person in a notebook—use simple headings, bullet points, "
-                f"and easy explanations. Avoid any robotic AI jargon."
-            )
-            res = get_ai_response(q_text)
-            st.session_state.messages.append({"role": "user", "content": f"Handwritten Notes for: {topic_desc}"})
-            st.session_state.messages.append({"role": "assistant", "content": res})
+            res = get_ai_response(f"Write natural, handwritten-style notes for: {note_topic}")
+            st.session_state.messages.extend([{"role": "user", "content": note_topic}, {"role": "assistant", "content": res}])
             st.rerun()
 
-    # 5. Image Generator Prompt
+    # Image Generator
     with st.expander("🎨 Image Generator"):
-        img_prompt = st.text_input("तस्वीर/आइडिया का वर्णन करें:", key="img_q")
-        if st.button("Generate Image Concept"):
-            res = get_ai_response(f"Create a professional, detailed AI image generation prompt and description based on: {img_prompt}")
-            st.session_state.messages.append({"role": "user", "content": f"Image Concept: {img_prompt}"})
-            st.session_state.messages.append({"role": "assistant", "content": res})
+        img_prompt = st.text_input("तस्वीर का वर्णन:", key="img_q")
+        if st.button("Generate Concept"):
+            res = get_ai_response(f"Provide image prompt for: {img_prompt}")
+            st.session_state.messages.extend([{"role": "user", "content": img_prompt}, {"role": "assistant", "content": res}])
             st.rerun()
 
-    # 6. AI Song Writer (Full Lyrics Generator)
+    # AI Song Writer (Singing Feature)
     with st.expander("🎵 AI Song Writer"):
-        song_prompt = st.text_input("गाने का विषय, मूड या बोल का आइडिया लिखें:", key="song_q")
-        if st.button("Write Full Song"):
-            q_text = (
-                f"Write complete, full song lyrics (with Sthayi/Mukhdah and Antara) based on this topic/mood: '{song_prompt}'. "
-                f"Make it emotional, rhythmic, and ready to sing in the user's language."
-            )
-            res = get_ai_response(q_text)
-            st.session_state.messages.append({"role": "user", "content": f"Song Request: {song_prompt}"})
-            st.session_state.messages.append({"role": "assistant", "content": res})
+        song_prompt = st.text_input("गाने का मूड या विषय:", key="song_q")
+        if st.button("गाना गाओ (Generate Song)"):
+            st.write("🎤 गाना तैयार हो रहा है...")
+            # गाना जनरेट करने के लिए Lyria 3 मॉडल कॉल करें
+            music_data = music_gen.generate_music()
+            st.session_state.messages.append({"role": "assistant", "content": f"यहाँ है आपके मूड '{song_prompt}' पर आधारित गाना:"})
+            # यदि जनरेट हुआ तो दिखाएं
+            if music_data:
+                st.audio(music_data)
             st.rerun()
 
-    if st.button("🗑️ Clear All Chat"): 
+    if st.button("🗑️ Clear All"): 
         st.session_state.messages = []
         st.rerun()
 
@@ -137,31 +118,18 @@ with st.sidebar:
 for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-        if msg["role"] == "assistant":
+        if msg["role"] == "assistant" and "content" in msg:
             if st.button(f"🔊 सुनो", key=f"audio_{idx}"):
                 st.audio(text_to_speech(msg["content"]), format='audio/mp3')
 
-# --- PLUS ICON (SEPARATE OPTIONS FOR GALLERY, DOCUMENTS & CAMERA) ---
+# --- PLUS ICON (Multimodal) ---
 with st.popover("➕"):
-    st.markdown("### 📂 अपलोड या कैमरा चुनें")
-    main_choice = st.radio("माध्यम चुनें:", ["🖼️ गैलरी (तस्वीरें)", "📄 डॉक्यूमेंट फाइल्स (PDF, TXT, DOCX)", "📷 लाइव कैमरा (फोटो खींचें)"])
-    
-    if main_choice == "🖼️ गैलरी (तस्वीरें)":
-        gal_file = st.file_uploader("तस्वीर चुनें", type=["jpg", "png", "jpeg"], key="pop_gal")
-        if gal_file:
-            st.success(f"'{gal_file.name}' गैलरी से अपलोड हो गई!")
-    elif main_choice == "📄 डॉक्यूमेंट फाइल्स (PDF, TXT, DOCX)":
-        doc_file = st.file_uploader("डॉक्यूमेंट फाइल चुनें", type=["pdf", "txt", "docx", "csv"], key="pop_doc")
-        if doc_file:
-            st.success(f"'{doc_file.name}' डॉक्यूमेंट अपलोड हो गया!")
-    else:
-        cam_pic = st.camera_input("कैमरे से फोटो लें", key="pop_cam")
-        if cam_pic:
-            st.success("कैमरे से फोटो सफलतापर्वक ले ली गई है!")
+    mode = st.radio("माध्यम:", ["🖼️ गैलरी", "📄 डॉक्यूमेंट", "📷 कैमरा"])
+    if mode == "🖼️ गैलरी": st.file_uploader("फोटो", type=["jpg", "png"], key="gal")
+    elif mode == "📄 डॉक्यूमेंट": st.file_uploader("दस्तावेज़", type=["pdf", "txt", "docx"], key="doc")
+    else: st.camera_input("कैमरा", key="main_cam")
 
-# --- CHAT INPUT ---
-prompt = st.chat_input("कुछ पूछो (हिंदी, इंग्लिश या किसी भी भाषा में)...")
-if prompt:
+if prompt := st.chat_input("कुछ पूछो..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     response = get_ai_response(prompt)
     st.session_state.messages.append({"role": "assistant", "content": response})
