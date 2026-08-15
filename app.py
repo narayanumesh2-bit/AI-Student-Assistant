@@ -3,15 +3,13 @@ from groq import Groq
 from gtts import gTTS
 import io
 import datetime
-import platform
-import music_gen # म्यूजिक जनरेशन के लिए
 
 # --- CONFIGURATION ---
 client = Groq(api_key="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")
 
 st.set_page_config(page_title="OmniLearn Assistant", page_icon="🤖", layout="wide")
 
-# --- CSS FOR DARK MODE & BRIGHT TEXT ---
+# --- FIXED CSS FOR DARK MODE ---
 st.markdown("""
     <style>
     .stApp { background-color: #0e0e10 !important; }
@@ -29,9 +27,12 @@ if "messages" not in st.session_state: st.session_state.messages = []
 # --- AI RESPONSE ---
 def get_ai_response(prompt):
     current_date = datetime.datetime.now().strftime("%d %B %Y, %I:%M %p")
-    full_prompt = f"Current Date: {current_date}. Respond in user's language: {prompt}"
+    full_prompt = (f"Current Date: {current_date}. Respond in the user's language: {prompt}")
     try:
-        chat = client.chat.completions.create(messages=[{"role": "user", "content": full_prompt}], model="llama-3.3-70b-versatile")
+        chat = client.chat.completions.create(
+            messages=[{"role": "user", "content": full_prompt}], 
+            model="llama-3.3-70b-versatile"
+        )
         return chat.choices[0].message.content
     except Exception as e:
         return f"Error: {str(e)}"
@@ -48,86 +49,60 @@ def text_to_speech(text):
 with st.sidebar:
     st.markdown("### ✨ Special Features")
     
-    # Math Solver
+    # 1. Math Solver
     with st.expander("🧮 Math Solver"):
-        math_mode = st.radio("इनपुट:", ["फाइल अपलोड", "कैमरा"], key="math_m")
-        if math_mode == "फाइल अपलोड": st.file_uploader("Upload", type=["jpg", "png", "pdf"], key="math_up")
-        else: st.camera_input("कैमरा", key="math_cam")
-        math_query = st.text_input("सवाल:", key="math_q")
+        if st.radio("इनपुट:", ["फाइल", "कैमरा"], key="m_m") == "फाइल": st.file_uploader("Upload", key="m_up")
+        else: st.camera_input("कैमरा", key="m_cam")
+        q = st.text_input("सवाल:", key="m_q")
         if st.button("Solve Math"):
-            res = get_ai_response(math_query or "Solve math")
-            st.session_state.messages.extend([{"role": "user", "content": math_query}, {"role": "assistant", "content": res}])
+            res = get_ai_response(q or "Solve math")
+            st.session_state.messages.extend([{"role": "user", "content": q}, {"role": "assistant", "content": res}])
             st.rerun()
 
-    # Science Solver
+    # 2. Science Solver
     with st.expander("🧪 Science Solver"):
-        sci_mode = st.radio("इनपुट:", ["फाइल अपलोड", "कैमरा"], key="sci_m")
-        if sci_mode == "फाइल अपलोड": st.file_uploader("Upload", type=["jpg", "png", "pdf"], key="sci_up")
-        else: st.camera_input("कैमरा", key="sci_cam")
-        sci_query = st.text_input("प्रश्न:", key="sci_q")
+        if st.radio("इनपुट:", ["फाइल", "कैमरा"], key="s_m") == "फाइल": st.file_uploader("Upload", key="s_up")
+        else: st.camera_input("कैमरा", key="s_cam")
+        q = st.text_input("प्रश्न:", key="s_q")
         if st.button("Solve Science"):
-            res = get_ai_response(sci_query or "Explain science")
-            st.session_state.messages.extend([{"role": "user", "content": sci_query}, {"role": "assistant", "content": res}])
+            res = get_ai_response(q or "Explain science")
+            st.session_state.messages.extend([{"role": "user", "content": q}, {"role": "assistant", "content": res}])
             st.rerun()
 
-    # General Solver
-    with st.expander("🌍 General Solver"):
-        gen_query = st.text_input("सवाल:", key="gen_q")
-        if st.button("Get Answer"):
-            res = get_ai_response(gen_query)
-            st.session_state.messages.extend([{"role": "user", "content": gen_query}, {"role": "assistant", "content": res}])
-            st.rerun()
-
-    # Create Notes
+    # 3. Create Notes
     with st.expander("📝 Create Notes"):
-        note_mode = st.radio("इनपुट:", ["फाइल अपलोड", "कैमरा"], key="note_m")
-        if note_mode == "फाइल अपलोड": st.file_uploader("Upload", type=["jpg", "png", "pdf"], key="note_up")
-        else: st.camera_input("कैमरा", key="note_cam")
-        note_topic = st.text_input("टॉपिक:", key="note_t")
+        if st.radio("इनपुट:", ["फाइल", "कैमरा"], key="n_m") == "फाइल": st.file_uploader("Upload", key="n_up")
+        else: st.camera_input("कैमरा", key="n_cam")
+        q = st.text_input("टॉपिक:", key="n_q")
         if st.button("Generate Notes"):
-            res = get_ai_response(f"Write natural, handwritten-style notes for: {note_topic}")
-            st.session_state.messages.extend([{"role": "user", "content": note_topic}, {"role": "assistant", "content": res}])
+            res = get_ai_response(f"Write natural, human-like handwritten style notes for: {q}")
+            st.session_state.messages.extend([{"role": "user", "content": q}, {"role": "assistant", "content": res}])
             st.rerun()
 
-    # Image Generator
-    with st.expander("🎨 Image Generator"):
-        img_prompt = st.text_input("तस्वीर का वर्णन:", key="img_q")
-        if st.button("Generate Concept"):
-            res = get_ai_response(f"Provide image prompt for: {img_prompt}")
-            st.session_state.messages.extend([{"role": "user", "content": img_prompt}, {"role": "assistant", "content": res}])
-            st.rerun()
-
-    # AI Song Writer (Singing Feature)
+    # 4. Song Writer
     with st.expander("🎵 AI Song Writer"):
-        song_prompt = st.text_input("गाने का मूड या विषय:", key="song_q")
-        if st.button("गाना गाओ (Generate Song)"):
-            st.write("🎤 गाना तैयार हो रहा है...")
-            # गाना जनरेट करने के लिए Lyria 3 मॉडल कॉल करें
-            music_data = music_gen.generate_music()
-            st.session_state.messages.append({"role": "assistant", "content": f"यहाँ है आपके मूड '{song_prompt}' पर आधारित गाना:"})
-            # यदि जनरेट हुआ तो दिखाएं
-            if music_data:
-                st.audio(music_data)
+        q = st.text_input("मूड/विषय:", key="so_q")
+        if st.button("Write Song"):
+            res = get_ai_response(f"Write a full, rhythmic song lyrics with Sthayi and Antara for: {q}")
+            st.session_state.messages.extend([{"role": "user", "content": q}, {"role": "assistant", "content": res}])
             st.rerun()
 
-    if st.button("🗑️ Clear All"): 
-        st.session_state.messages = []
-        st.rerun()
+    if st.button("🗑️ Clear All"): st.session_state.messages = []; st.rerun()
 
 # --- CHAT UI ---
 for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-        if msg["role"] == "assistant" and "content" in msg:
+        if msg["role"] == "assistant":
             if st.button(f"🔊 सुनो", key=f"audio_{idx}"):
                 st.audio(text_to_speech(msg["content"]), format='audio/mp3')
 
-# --- PLUS ICON (Multimodal) ---
+# --- PLUS ICON ---
 with st.popover("➕"):
-    mode = st.radio("माध्यम:", ["🖼️ गैलरी", "📄 डॉक्यूमेंट", "📷 कैमरा"])
-    if mode == "🖼️ गैलरी": st.file_uploader("फोटो", type=["jpg", "png"], key="gal")
-    elif mode == "📄 डॉक्यूमेंट": st.file_uploader("दस्तावेज़", type=["pdf", "txt", "docx"], key="doc")
-    else: st.camera_input("कैमरा", key="main_cam")
+    m = st.radio("माध्यम:", ["🖼️ गैलरी", "📄 डॉक्यूमेंट", "📷 कैमरा"])
+    if m == "🖼️ गैलरी": st.file_uploader("फोटो", type=["jpg", "png"], key="p1")
+    elif m == "📄 डॉक्यूमेंट": st.file_uploader("दस्तावेज़", type=["pdf", "txt"], key="p2")
+    else: st.camera_input("कैमरा", key="p3")
 
 if prompt := st.chat_input("कुछ पूछो..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
