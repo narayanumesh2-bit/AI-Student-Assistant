@@ -1,0 +1,8 @@
+streamlit
+groq
+ollama
+Pillow
+pytesseract
+SpeechRecognition
+gTTS
+streamlit-mic-recorder
