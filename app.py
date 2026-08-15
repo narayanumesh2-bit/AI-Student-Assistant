@@ -9,7 +9,7 @@ client = Groq(api_key="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"
 
 st.set_page_config(page_title="OmniLearn Assistant", page_icon="🤖", layout="wide")
 
-# --- CSS (UI & Popover Fixes) ---
+# --- CSS (Ultimate Fix for Chat Input Visibility & UI) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0e0e10 !important; }
@@ -19,10 +19,14 @@ st.markdown("""
     .stButton > button { background-color: #2b2b36 !important; color: #ffffff !important; border: 1px solid #444; width: 100%; }
     .st-expander { background-color: #1e1e24 !important; border: 1px solid #333 !important; }
     
-    /* चैट इनपुट बॉक्स फिक्स */
-    [data-testid="stChatInput"] input { background-color: #1e1e24 !important; color: #ffffff !important; }
+    /* 🔥 चैट इनपुट बॉक्स का टेक्स्ट और बैकग्राउंड फिक्स (ताकि टाइप किया हुआ साफ दिखे) */
+    [data-testid="stChatInput"] textarea {
+        background-color: #1e1e24 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
     
-    /* प्लस पॉपओवर को बड़ा और साफ़ करने के लिए */
+    /* प्लस पॉपओवर स्टाइल */
     [data-testid="stPopoverBody"] {
         background-color: #161621 !important;
         border: 1px solid #444 !important;
@@ -37,15 +41,25 @@ st.title("🤖 OmniLearn Assistant")
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# --- AI RESPONSE (Correct Date & Day) ---
+# --- AI RESPONSE (Natural & Correct Day/Date Support) ---
 def get_ai_response(prompt):
     now = datetime.datetime.now()
-    current_date = now.strftime("%A, %d %B %Y, %I:%M %p")
-    full_prompt = f"Today is {current_date}. Respond in the user's language: {prompt}"
+    # एकदम सटीक दिन और तारीख (जैसे Saturday, 15 August 2026)
+    current_date = now.strftime("%A, %d %B %Y")
+    
+    full_prompt = (
+        f"You are a helpful, expert AI assistant. Today's current day and date is {current_date}. "
+        f"If the user asks for the date or day, naturally include this in your reply. "
+        f"User query: {prompt}. Respond in the user's language clearly and politely."
+    )
     try:
-        chat = client.chat.completions.create(messages=[{"role": "user", "content": full_prompt}], model="llama-3.3-70b-versatile")
+        chat = client.chat.completions.create(
+            messages=[{"role": "user", "content": full_prompt}], 
+            model="llama-3.3-70b-versatile"
+        )
         return chat.choices[0].message.content
-    except Exception as e: return f"Error: {str(e)}"
+    except Exception as e: 
+        return f"Error: {str(e)}"
 
 # --- TEXT TO SPEECH ---
 def play_audio(text):
@@ -67,7 +81,7 @@ with st.sidebar:
         q = st.text_input("गणित का सवाल लिखें:", key="math_txt")
         if st.button("Solve Math", key="btn_math"):
             res = get_ai_response(q or "Solve this math problem step by step")
-            st.session_state.messages.extend([{"role": "user", "content": q}, {"role": "assistant", "content": res}])
+            st.session_state.messages.extend([{"role": "user", "content": q or "Solve Math"}, {"role": "assistant", "content": res}])
             st.rerun()
 
     # 2. Science Solver
@@ -78,7 +92,7 @@ with st.sidebar:
         q = st.text_input("विज्ञान का प्रश्न लिखें:", key="sci_txt")
         if st.button("Solve Science", key="btn_sci"):
             res = get_ai_response(q or "Explain this science concept clearly")
-            st.session_state.messages.extend([{"role": "user", "content": q}, {"role": "assistant", "content": res}])
+            st.session_state.messages.extend([{"role": "user", "content": q or "Solve Science"}, {"role": "assistant", "content": res}])
             st.rerun()
 
     # 3. Create Notes
@@ -89,7 +103,7 @@ with st.sidebar:
         q = st.text_input("नोट्स का टॉपिक लिखें:", key="note_txt")
         if st.button("Generate Notes", key="btn_note"):
             res = get_ai_response(f"Write clean, natural, handwritten-style study notes for: {q}")
-            st.session_state.messages.extend([{"role": "user", "content": q}, {"role": "assistant", "content": res}])
+            st.session_state.messages.extend([{"role": "user", "content": q or "Generate Notes"}, {"role": "assistant", "content": res}])
             st.rerun()
 
     # 4. General Solver
@@ -128,7 +142,7 @@ for idx, msg in enumerate(st.session_state.messages):
             if st.button(f"🔊 सुनो", key=f"audio_{idx}"):
                 st.audio(play_audio(msg["content"]), format='audio/mp3')
 
-# --- IMPROVED PLUS ICON (Popover) ---
+# --- PLUS ICON (Popover) ---
 with st.popover("➕"):
     st.markdown("### 📂 फाइल या कैमरा चुनें")
     upload_type = st.radio("विकल्प चुनें:", ["🖼️ गैलरी से फोटो", "📄 डॉक्यूमेंट फाइल", "📷 लाइव कैमरा"])
